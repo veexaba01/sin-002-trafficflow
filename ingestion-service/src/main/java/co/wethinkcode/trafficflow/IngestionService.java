@@ -35,10 +35,13 @@ public class IngestionService
         return raw.trim().replaceAll("\\s+", " ").toLowerCase();
     }
 
+    private static final Set<String> TRUE_FLAGS = Set.of("y", "yes", "1", "true");
+
     private boolean cleanActiveFlag(String raw)
     {
         if (raw == null) {return false;}
-        return raw.trim().equalsIgnoreCase("y");
+        String flag = raw.trim().toLowerCase();
+        return TRUE_FLAGS.contains(flag);
     }
 
     private static final Set<String> PLACEHOLDERS = Set.of("", "n/a", "tbd", "unknown", "-", "nan");
