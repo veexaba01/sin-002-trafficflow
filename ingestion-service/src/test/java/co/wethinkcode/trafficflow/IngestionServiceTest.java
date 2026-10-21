@@ -5,6 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.InputStream;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,5 +60,19 @@ public class IngestionServiceTest
         assertTrue(oneRow.isActive(), "'1' should be true");
         assertFalse(zeroRow.isActive(), "'0' should be false");
         assertFalse(falseRow.isActive(), "'FALSE' should be false");
+    }
+
+    @Test
+    public void testCleanCsv_RemovesDuplicates()
+    {
+        InputStream stream = getClass().getResourceAsStream("/intersections-legacy.csv");
+        List<Intersection> cleanedList = service.cleanCsv(stream);
+
+        Set<String> seenIds = new HashSet<>();
+        for (Intersection item : cleanedList)
+        {
+            boolean isNewId = seenIds.add(item.getId());
+            assertTrue(isNewId, "Duplicate ID found in cleaned list: " + item.getId());
+        }
     }
 }
