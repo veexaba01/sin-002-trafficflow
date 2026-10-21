@@ -1,5 +1,12 @@
 package co.wethinkcode.trafficflow;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class IngestionService
@@ -50,5 +57,38 @@ public class IngestionService
     {
         if (value == null) {return true;}
         return PLACEHOLDERS.contains(value.trim().toLowerCase());
+    }
+
+    public List<Intersection> cleanCsv(InputStream csvStream) 
+    {
+        Map<String, Intersection> uniqueIntersections = new LinkedHashMap<>();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(csvStream))) {
+            String line;
+            while ((line = reader.readLine()) != null)
+            {
+                processLine(line, uniqueIntersections);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error reading CSV file", e);
+        }
+
+        return new ArrayList<>(uniqueIntersections.values());
+    }
+
+    private void processLine(String line, Map<String, Intersection> uniqueIntersections)
+    {
+        if (isSkippableLine(line)) {return;}
+
+        Intersection cleaned = cleanRecord(line.split(",", -1));
+        if (cleaned != null)
+        {
+            uniqueIntersections.putIfAbsent(cleaned.getId(), cleaned);
+        }
+    }
+
+    private boolean isSkippableLine(String line)
+    {
+        return line.isBlank() || line.trim().toLowerCase().startsWith("intersection_id");
     }
 }
