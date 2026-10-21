@@ -1,6 +1,7 @@
 package co.wethinkcode.trafficflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -27,5 +28,17 @@ public class IngestionServiceTest
         assertEquals("Downtown", result.getDistrict(), "District should be trimmed and Title Cased");
         assertEquals("4-way", result.getSignalType(), "Signal type should be lowercase and trimmed");
         assertTrue(result.isActive(), "Y should be converted to true");
+    }
+
+    @Test
+    public void testCleanSingleRecord_PlaceholdersBecomeNull()
+    {
+        String[] rawLine = {"INT-1004", "unknown", "", "Y"};
+
+        Intersection result = service.cleanRecord(rawLine);
+
+        assertEquals("INT-1004", result.getId());
+        assertNull(result.getDistrict(), "Placeholder 'unknown' should become null");
+        assertNull(result.getSignalType(), "Empty string should become null");
     }
 }
