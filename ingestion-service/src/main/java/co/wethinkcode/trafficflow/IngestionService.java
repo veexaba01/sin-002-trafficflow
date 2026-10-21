@@ -1,5 +1,7 @@
 package co.wethinkcode.trafficflow;
 
+import java.util.Set;
+
 public class IngestionService
 {
     public Intersection cleanRecord(String[] rawLine)
@@ -16,20 +18,20 @@ public class IngestionService
 
     private String cleanId(String raw)
     {
-        if (raw == null || raw.trim().isEmpty()) {return null;}
+        if (isPlaceholder(raw)) {return null;}
         return raw.trim().toUpperCase();
     }
 
     private String cleanDistrict(String raw)
     {
-        if (raw == null || raw.trim().isEmpty()) {return null;}
+        if (isPlaceholder(raw)) {return null;}
         String word = raw.trim().replaceAll("\\s+", " ").toLowerCase();
         return word.substring(0, 1).toUpperCase() + word.substring(1);
     }
 
     private String cleanSignalType(String raw)
     {
-        if (raw == null || raw.trim().isEmpty()) {return null;}
+        if (isPlaceholder(raw)) {return null;}
         return raw.trim().replaceAll("\\s+", " ").toLowerCase();
     }
 
@@ -37,5 +39,13 @@ public class IngestionService
     {
         if (raw == null) {return false;}
         return raw.trim().equalsIgnoreCase("y");
+    }
+
+    private static final Set<String> PLACEHOLDERS = Set.of("", "n/a", "tbd", "unknown", "-", "nan");
+
+    private boolean isPlaceholder(String value)
+    {
+        if (value == null) {return true;}
+        return PLACEHOLDERS.contains(value.trim().toLowerCase());
     }
 }
