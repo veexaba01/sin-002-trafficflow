@@ -1,6 +1,7 @@
 package co.wethinkcode.trafficflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,5 +41,19 @@ public class IngestionServiceTest
         assertEquals("INT-1004", result.getId());
         assertNull(result.getDistrict(), "Placeholder 'unknown' should become null");
         assertNull(result.getSignalType(), "Empty string should become null");
+    }
+    
+    @Test
+    public void testCleanSingleRecord_BooleanFlagVariations()
+    {
+        Intersection yesRow = service.cleanRecord(new String[]{"INT-1002", "Midtown", "4-way", "yes"});
+        Intersection oneRow = service.cleanRecord(new String[]{"INT-1007", "Eastside", "4-way", "1"});
+        Intersection zeroRow = service.cleanRecord(new String[]{"INT-1003", "Downtown", "4-way", "0"});
+        Intersection falseRow = service.cleanRecord(new String[]{"INT-1009", "Westside", "4-way", "FALSE"});
+
+        assertTrue(yesRow.isActive(), "'yes' should be true");
+        assertTrue(oneRow.isActive(), "'1' should be true");
+        assertFalse(zeroRow.isActive(), "'0' should be false");
+        assertFalse(falseRow.isActive(), "'FALSE' should be false");
     }
 }
