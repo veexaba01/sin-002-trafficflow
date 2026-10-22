@@ -75,4 +75,13 @@ public class IngestionServiceTest
             assertTrue(isNewId, "Duplicate ID found in cleaned list: " + item.getId());
         }
     }
+
+    @Test
+    public void testToJsonArray_FormatsIntersectionsAsJson()
+    {
+        Intersection item = new Intersection("INT-1001", "Downtown", "4-way", true);
+        String json = IngestionServiceApp.toJsonArray(List.of(item));
+
+        assertEquals("[{\"id\":\"INT-1001\",\"district\":\"Downtown\",\"signalType\":\"4-way\",\"active\":true}]", json);
+    }
 }
