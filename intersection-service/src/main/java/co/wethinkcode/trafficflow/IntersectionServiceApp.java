@@ -12,6 +12,17 @@ public class IntersectionServiceApp {
         // TODO (Validates intersection/district names (source of truth).)
         // Add domain endpoints for intersection-service here.
     }
+
+    /**
+     * Checks whether normalized intersection ID exists in the JSON list.
+     */
+    public static boolean isValidIntersectionId(String json, String rawId)
+    {
+        if (json == null || rawId == null) {return false;}
+        String normalizedId = rawId.trim().toUpperCase();
+        String searchKey = "\"id\":\"" + normalizedId + "\"";
+        return json.contains(searchKey);
+    }
 }
 
 // MQ TODO: publishes a periodic heartbeat to ActiveMQ queue MqConfig.HEARTBEAT_QUEUE at
