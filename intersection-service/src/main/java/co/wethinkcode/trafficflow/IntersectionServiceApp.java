@@ -1,6 +1,7 @@
 package co.wethinkcode.trafficflow;
 
 import io.javalin.Javalin;
+import io.javalin.http.Context;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -22,6 +23,7 @@ public class IntersectionServiceApp {
         loadFromIngestionService();
 
         app.get("/intersections", ctx -> ctx.contentType("application/json").result(cachedIntersectionsJson));
+        app.get("/intersections/{id}", IntersectionServiceApp::handleGetIntersectionById);
     }
 
     /**
@@ -61,6 +63,23 @@ public class IntersectionServiceApp {
         if (response.statusCode() == 200)
         {
             cachedIntersectionsJson = response.body();
+        }
+    }
+
+    /**
+     * Returns 200 OK if the intersection ID exists, or 404 Not Found if unknown.
+     */
+    private static void handleGetIntersectionById(Context ctx)
+    {
+        String id = ctx.pathParam("id").trim().toUpperCase();
+
+        if (isValidIntersectionId(cachedIntersectionsJson, id))
+        {
+            ctx.status(200).contentType("application/json")
+                    .result("{\"id\":\"" + id + "\",\"valid\":true}");
+        } else {
+            ctx.status(404).contentType("application/json")
+                    .result("{\"error\":\"Intersection not found\",\"id\":\"" + id + "\"}");
         }
     }
 }
