@@ -36,4 +36,13 @@ public class RoutingServiceTest {
         assertTrue(RoutingServiceApp.isMissing("   "));
         assertFalse(RoutingServiceApp.isMissing("INT-1001"));
     }
+
+    /**
+     * Verifies that incoming topic message text updates the cached congestion level.
+     */
+    @Test
+    public void testUpdateCongestionFromMessage_UpdatesCachedLevel() {
+        RoutingServiceApp.updateCongestionFromMessage("{\"level\":6}");
+        assertEquals(6, RoutingServiceApp.getCurrentCongestionLevel());
+    }
 }

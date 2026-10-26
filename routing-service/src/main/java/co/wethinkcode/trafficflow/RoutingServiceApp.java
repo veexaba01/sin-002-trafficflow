@@ -1,8 +1,11 @@
 package co.wethinkcode.trafficflow;
 
+import co.wethinkcode.trafficflow.mq.MqConfig;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import org.apache.activemq.ActiveMQConnectionFactory;
 
+import javax.jms.*;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -10,6 +13,7 @@ import java.net.http.HttpResponse;
 
 public class RoutingServiceApp {
     private static final HttpClient httpClient = HttpClient.newHttpClient();
+    private static int currentCongestionLevel = 0;
 
     public static void main(String[] args) {
         Javalin app = Javalin.create().start(7023);
@@ -18,6 +22,7 @@ public class RoutingServiceApp {
 
         // TODO (Provides estimated travel times based on congestion and intersection.)
         // Add domain endpoints for routing-service here.
+        subscribeToCongestionTopic();
         app.get("/routes/estimate", RoutingServiceApp::handleEstimateRoute);
     }
 
@@ -75,19 +80,47 @@ public class RoutingServiceApp {
     }
 
     /**
-     * Fetches the current city-wide congestion level from congestion-service on port 7022.
+     * Subscribes to MqConfig.TOPIC on ActiveMQ to receive congestion level changes asynchronously.
      */
-    private static int fetchCongestionLevel() {
+    private static void subscribeToCongestionTopic() {
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://localhost:7022/congestion"))
-                    .GET()
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return extractDigits(response.body());
+            ConnectionFactory factory = new ActiveMQConnectionFactory(MqConfig.BROKER_URL);
+            Connection connection = factory.createConnection();
+            connection.start();
+
+            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            Topic topic = session.createTopic(MqConfig.TOPIC);
+            MessageConsumer consumer = session.createConsumer(topic);
+            consumer.setMessageListener(RoutingServiceApp::handleIncomingMessage);
         } catch (Exception e) {
-            return 0;
+            System.out.println("ActiveMQ broker not running: " + e.getMessage());
         }
+    }
+
+    /**
+     * Processes incoming ActiveMQ topic messages containing congestion updates.
+     */
+    private static void handleIncomingMessage(Message message) {
+        try {
+            if (message instanceof TextMessage textMessage) {
+                updateCongestionFromMessage(textMessage.getText());
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    /**
+     * Updates the cached congestion level from a topic message payload.
+     */
+    public static void updateCongestionFromMessage(String messageText) {
+        currentCongestionLevel = extractDigits(messageText);
+    }
+
+    /**
+     * Returns the currently cached city-wide congestion level.
+     */
+    public static int getCurrentCongestionLevel() {
+        return currentCongestionLevel;
     }
 
     /**
@@ -128,10 +161,9 @@ public class RoutingServiceApp {
             return;
         }
 
-        int congestionLevel = fetchCongestionLevel();
-        double travelMinutes = calculateTravelTime(congestionLevel);
+        double travelMinutes = calculateTravelTime(currentCongestionLevel);
         ctx.status(200).contentType("application/json")
-                .result(buildEstimateJson(from, to, congestionLevel, travelMinutes));
+                .result(buildEstimateJson(from, to, currentCongestionLevel, travelMinutes));
     }
 }
 
