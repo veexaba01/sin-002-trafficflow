@@ -27,4 +27,12 @@ public class CongestionServiceTest {
         assertEquals(5, CongestionServiceApp.parseLevel("{\"level\": 5}"));
         assertEquals(-1, CongestionServiceApp.parseLevel("invalid"));
     }
+
+    /**
+     * Verifies that buildLevelJson formats the level payload for ActiveMQ.
+     */
+    @Test
+    public void testBuildLevelJson_FormatsTopicPayload() {
+        assertEquals("{\"level\":4}", CongestionServiceApp.buildLevelJson(4));
+    }
 }
