@@ -1,12 +1,17 @@
 package co.wethinkcode.trafficflow;
 
+import co.wethinkcode.trafficflow.mq.MqConfig;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import org.apache.activemq.ActiveMQConnectionFactory;
 
+import javax.jms.*;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class IntersectionServiceApp {
 
@@ -27,21 +32,65 @@ public class IntersectionServiceApp {
     }
 
     /**
-     * Checks whether normalized intersection ID exists in the JSON list.
+     * Schedules a periodic heartbeat message every 3 seconds to ActiveMQ.
      */
-    public static boolean isValidIntersectionId(String json, String rawId)
-    {
-        if (json == null || rawId == null) {return false;}
+    private static void startHeartbeatSender() {
+        Executors.newSingleThreadScheduledExecutor()
+                .scheduleAtFixedRate(IntersectionServiceApp::sendSingleHeartbeat, 1, 3, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Publishes a single HEARTBEAT message to MqConfig.HEARTBEAT_QUEUE.
+     */
+    private static void sendSingleHeartbeat() {
+        try {
+            ConnectionFactory factory = new ActiveMQConnectionFactory(MqConfig.BROKER_URL);
+            Connection connection = factory.createConnection();
+            connection.start();
+
+            Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            Queue queue = session.createQueue(MqConfig.HEARTBEAT_QUEUE);
+            MessageProducer producer = session.createProducer(queue);
+
+            TextMessage message = session.createTextMessage("HEARTBEAT");
+            producer.send(message);
+            connection.close();
+        } catch (Exception e) {
+            System.out.println("ActiveMQ heartbeat failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Returns 200 OK if the intersection ID exists, or 404 Not Found if unknown.
+     */
+    private static void handleGetIntersectionById(Context ctx) {
+        String id = ctx.pathParam("id").trim().toUpperCase();
+
+        if (isValidIntersectionId(cachedIntersectionsJson, id)) {
+            ctx.status(200).contentType("application/json")
+                    .result("{\"id\":\"" + id + "\",\"valid\":true}");
+        } else {
+            ctx.status(404).contentType("application/json")
+                    .result("{\"error\":\"Intersection not found\",\"id\":\"" + id + "\"}");
+        }
+    }
+
+    /**
+     * Checks whether the normalized intersection ID exists in the JSON list.
+     */
+    public static boolean isValidIntersectionId(String json, String rawId) {
+        if (json == null || rawId == null) {
+            return false;
+        }
         String normalizedId = rawId.trim().toUpperCase();
         String searchKey = "\"id\":\"" + normalizedId + "\"";
         return json.contains(searchKey);
     }
 
     /**
-     * Fetches cleaned intersections JSON from the ingestion-service on port 7020.
+     * Fetches the cleaned intersections JSON from ingestion-service (port 7020).
      */
-    private static void loadFromIngestionService()
-    {
+    private static void loadFromIngestionService() {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("http://localhost:7020/intersections"))
@@ -56,30 +105,11 @@ public class IntersectionServiceApp {
     }
 
     /**
-     * Updates local JSON cache when ingestion-service responds with 200 OK.
+     * Updates the local JSON cache when ingestion-service responds with 200 OK.
      */
-    private static void updateCacheIfSuccessful(HttpResponse<String> response)
-    {
-        if (response.statusCode() == 200)
-        {
+    private static void updateCacheIfSuccessful(HttpResponse<String> response) {
+        if (response.statusCode() == 200) {
             cachedIntersectionsJson = response.body();
-        }
-    }
-
-    /**
-     * Returns 200 OK if the intersection ID exists, or 404 Not Found if unknown.
-     */
-    private static void handleGetIntersectionById(Context ctx)
-    {
-        String id = ctx.pathParam("id").trim().toUpperCase();
-
-        if (isValidIntersectionId(cachedIntersectionsJson, id))
-        {
-            ctx.status(200).contentType("application/json")
-                    .result("{\"id\":\"" + id + "\",\"valid\":true}");
-        } else {
-            ctx.status(404).contentType("application/json")
-                    .result("{\"error\":\"Intersection not found\",\"id\":\"" + id + "\"}");
         }
     }
 }
