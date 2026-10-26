@@ -1,6 +1,7 @@
 package co.wethinkcode.trafficflow;
 
 import io.javalin.Javalin;
+import io.javalin.http.Context;
 
 /**
  * Tracks the city-wide congestion level 0-8 on port 7022.
@@ -14,6 +15,7 @@ public class CongestionServiceApp {
 
         app.get("/health", ctx -> ctx.result("OK"));
         app.get("/congestion", ctx -> ctx.contentType("application/json").result("{\"level\":" + congestionLevel + "}"));
+        app.post("/congestion", CongestionServiceApp::handleUpdateCongestion);
     }
 
     /**
@@ -32,6 +34,22 @@ public class CongestionServiceApp {
         }
         String digits = rawInput.replaceAll("[^0-9-]", "");
         return digits.isEmpty() ? -1 : Integer.parseInt(digits);
+    }
+
+    /**
+     * Updates the city-wide congestion level if valid 0-8 or returns 400 Bad Request.
+     */
+    private static void handleUpdateCongestion(Context ctx) {
+        String input = (ctx.queryParam("level") != null) ? ctx.queryParam("level") : ctx.body();
+        int newLevel = parseLevel(input);
+
+        if (isValidLevel(newLevel)) {
+            congestionLevel = newLevel;
+            ctx.status(200).contentType("application/json").result("{\"level\":" + congestionLevel + "}");
+        } else {
+            ctx.status(400).contentType("application/json")
+                    .result("{\"error\":\"Level must be between 0 and 8\"}");
+        }
     }
 }
 
