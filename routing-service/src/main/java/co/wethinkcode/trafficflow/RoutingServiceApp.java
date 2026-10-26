@@ -1,6 +1,7 @@
 package co.wethinkcode.trafficflow;
 
 import io.javalin.Javalin;
+import io.javalin.http.Context;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -17,6 +18,7 @@ public class RoutingServiceApp {
 
         // TODO (Provides estimated travel times based on congestion and intersection.)
         // Add domain endpoints for routing-service here.
+        app.get("/routes/estimate", RoutingServiceApp::handleEstimateRoute);
     }
 
     /**
@@ -86,6 +88,50 @@ public class RoutingServiceApp {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    /**
+     * Handles GET /routes/estimate?from={id}&to={id} requests.
+     */
+    private static void handleEstimateRoute(Context ctx) {
+        String from = ctx.queryParam("from");
+        String to = ctx.queryParam("to");
+
+        if (isMissing(from) || isMissing(to)) {
+            ctx.status(400).contentType("application/json")
+                    .result("{\"error\":\"Missing 'from' or 'to' query parameter\"}");
+            return;
+        }
+
+        evaluateRoute(ctx, from, to);
+    }
+
+    /**
+     * Validates endpoints against intersection-service and returns the travel time estimate.
+     */
+    private static void evaluateRoute(Context ctx, String from, String to) {
+        try {
+            sendEstimateOrNotFound(ctx, from, to);
+        } catch (Exception e) {
+            ctx.status(503).contentType("application/json")
+                    .result("{\"error\":\"Intersection service is unreachable\"}");
+        }
+    }
+
+    /**
+     * Sends 200 OK with the travel time estimate if both endpoints are valid, or 404 Not Found.
+     */
+    private static void sendEstimateOrNotFound(Context ctx, String from, String to) throws Exception {
+        if (!areBothEndpointsValid(from, to)) {
+            ctx.status(404).contentType("application/json")
+                    .result("{\"error\":\"Invalid intersection ID\"}");
+            return;
+        }
+
+        int congestionLevel = fetchCongestionLevel();
+        double travelMinutes = calculateTravelTime(congestionLevel);
+        ctx.status(200).contentType("application/json")
+                .result(buildEstimateJson(from, to, congestionLevel, travelMinutes));
     }
 }
 
