@@ -2,7 +2,13 @@ package co.wethinkcode.trafficflow;
 
 import io.javalin.Javalin;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
 public class RoutingServiceApp {
+    private static final HttpClient httpClient = HttpClient.newHttpClient();
 
     public static void main(String[] args) {
         Javalin app = Javalin.create().start(7023);
@@ -44,6 +50,42 @@ public class RoutingServiceApp {
         }
         String digits = body.replaceAll("[^0-9]", "");
         return digits.isEmpty() ? 0 : Integer.parseInt(digits);
+    }
+
+    /**
+     * Returns true only when both route endpoints exist in intersection-service.
+     */
+    private static boolean areBothEndpointsValid(String from, String to) throws Exception {
+        return isValidIntersection(from) && isValidIntersection(to);
+    }
+
+    /**
+     * Calls intersection-service on port 7021 to check if an intersection ID exists.
+     */
+    private static boolean isValidIntersection(String id) throws Exception {
+        String cleanId = id.trim().toUpperCase();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:7021/intersections/" + cleanId))
+                .GET()
+                .build();
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        return response.statusCode() == 200;
+    }
+
+    /**
+     * Fetches the current city-wide congestion level from congestion-service on port 7022.
+     */
+    private static int fetchCongestionLevel() {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:7022/congestion"))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return extractDigits(response.body());
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }
 
