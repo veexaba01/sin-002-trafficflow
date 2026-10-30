@@ -242,3 +242,6 @@ curl -i -w "\n" http://localhost:7024/alert
 | `routing-service` &rarr; `congestion-service` | 2 | REST, `GET` | `GET /congestion` &rarr; `200 OK` + `{"level": 0-8}` (fallback before MQ). |
 | `congestion-service` &rarr; `routing-service` | 3 | ActiveMQ Topic `congestion-topic` | Published on `POST /congestion`: `{"level": 0-8}`. Subscribed via non-blocking JMS listener. |
 | `intersection-service` &rarr; `intersection-watchdog` | 4 | ActiveMQ Queue `intersection-heartbeat-queue` | 3-second periodic heartbeat pulse (`"HEARTBEAT"`). 10-second missed pulse threshold triggers `503 ALERT`. |
+
+## Demo link
+https://youtu.be/hOQsbrFX8V0
