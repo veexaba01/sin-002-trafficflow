@@ -245,3 +245,6 @@ curl -i -w "\n" http://localhost:7024/alert
 
 ## Demo link
 https://youtu.be/hOQsbrFX8V0
+
+## Verification code
+WTC-37G34X4Q
